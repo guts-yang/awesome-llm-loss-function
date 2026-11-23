@@ -28,8 +28,8 @@ GUIDE = [
     },
     {
         "goal": "把教师分布交给学生",
-        "losses": ["forward_kl", "reverse_kl", "rkld"],
-        "reason": "正向 KL 覆盖全部模式，反向 KL 只守住学生自己的模式，RKLD 看两者的差。",
+        "losses": ["forward_kl", "reverse_kl", "jsd", "rkld"],
+        "reason": "正向 KL 覆盖全部模式，反向 KL 只守住学生自己的模式。JS 取两者的混合并且有上界，RKLD 看两者的差。",
     },
     {
         "goal": "强行压低遗忘答案，先不管崩塌",

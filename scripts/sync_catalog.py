@@ -76,6 +76,7 @@ CURATED = [
     Paper(title="DeepSeekMath: Pushing the Limits of Mathematical Reasoning in Open Language Models", url="https://arxiv.org/abs/2402.03300", authors="Zhihong Shao et al.", year=2024, tags=["grpo", "rl"], source="curated"),
     Paper(title="Distilling the Knowledge in a Neural Network", url="https://arxiv.org/abs/1503.02531", authors="Geoffrey Hinton, Oriol Vinyals, Jeff Dean", year=2015, tags=["distillation", "kl"], source="curated"),
     Paper(title="MiniLLM: Knowledge Distillation of Large Language Models", url="https://arxiv.org/abs/2306.08543", authors="Yuxian Gu, Li Dong, Furu Wei, Minlie Huang", year=2023, tags=["distillation", "reverse-kl"], source="curated"),
+    Paper(title="On-Policy Distillation of Language Models: Learning from Self-Generated Mistakes", url="https://arxiv.org/abs/2306.13649", authors="Rishabh Agarwal, Nino Vieillard, Yongchao Zhou, Piotr Stanczyk, Sabela Ramos, Matthieu Geist, Olivier Bachem", year=2024, venue="ICLR", tags=["distillation", "jensen"], source="curated"),
 ]
 
 

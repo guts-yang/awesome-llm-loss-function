@@ -1,6 +1,6 @@
 {
   "source_readme": "/Users/chenyliao/Repositories/Machine_Unlearning/awesome-llm-unlearning/README.md",
-  "count": 654,
+  "count": 655,
   "papers": [
     {
       "title": "A Model Merging Approach for Continual MLLM Unlearning",
@@ -8618,6 +8618,22 @@
       "tags": [
         "distillation",
         "reverse-kl"
+      ],
+      "source": "curated"
+    },
+    {
+      "title": "On-Policy Distillation of Language Models: Learning from Self-Generated Mistakes",
+      "url": "https://arxiv.org/abs/2306.13649",
+      "authors": "Rishabh Agarwal, Nino Vieillard, Yongchao Zhou, Piotr Stanczyk, Sabela Ramos, Matthieu Geist, Olivier Bachem",
+      "date": "",
+      "venue": "ICLR",
+      "code": "",
+      "code_url": "",
+      "year": 2024,
+      "section": "",
+      "tags": [
+        "distillation",
+        "jensen"
       ],
       "source": "curated"
     }

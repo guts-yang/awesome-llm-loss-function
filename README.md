@@ -25,7 +25,7 @@ Interactive LLM Loss Atlas。用中文讲解大语言模型的损失函数，用
 | --- | --- |
 | 语言建模 | Next-token CE、Label smoothing、UL2 span CE |
 | 偏好对齐 | DPO、IPO、SimPO、KTO、ORPO、SLiC-HF、Bradley-Terry、PPO clip、GRPO |
-| 蒸馏 | Forward KL、Reverse KL、RKLD |
+| 蒸馏 | Forward KL、Reverse KL、JS、RKLD |
 | 机器遗忘 | GA、GradDiff、GA+KL、NPO、SimNPO、WHP、Unilogit、RMU、SHRED、JensUn、BLUR、SatImp |
 
 选择指南在看板的「损失目录」，也写在 [`docs/selection-guide.md`](docs/selection-guide.md)。单条说明在 [`docs/losses/`](docs/losses/)。

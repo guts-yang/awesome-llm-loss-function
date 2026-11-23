@@ -1,8 +1,8 @@
-"""Forward KL, reverse KL, and their difference on a two-class student."""
+"""Forward KL, reverse KL, Jensen-Shannon, and their difference on a two-class student."""
 
 import numpy as np
 
-from core.math_utils import clip_p
+from core.math_utils import binary_kl, clip_p
 from core.schema import ParamSpec, make_loss
 
 
@@ -32,7 +32,26 @@ def _rkld(x, y, params):
     return _reverse_kl(x, y, params) - _forward_kl(x, y, params)
 
 
+def _jsd(x, y, params):
+    student_x, _ = _student(x, y)
+    teacher_x, _ = _teacher(params)
+    beta = float(params["beta"])
+    mixture = beta * teacher_x + (1.0 - beta) * student_x
+    return beta * binary_kl(teacher_x, mixture) + (1.0 - beta) * binary_kl(student_x, mixture)
+
+
 _TEACHER = [ParamSpec("teacher", "教师在第一类上的概率", 0.8, 0.05, 0.95, 0.01)]
+_JS_PARAMS = _TEACHER + [
+    ParamSpec(
+        "beta",
+        "混合系数 beta",
+        0.5,
+        0.05,
+        0.95,
+        0.05,
+        "0.5 是对称 JS。靠近 0 时梯度像正向 KL，靠近 1 时像反向 KL。",
+    )
+]
 
 make_loss(
     _forward_kl,
@@ -76,6 +95,28 @@ make_loss(
     bounded_below=True,
     keywords=["reverse KL", "distillation"],
     toy_note_zh="",
+)
+
+make_loss(
+    _jsd,
+    id="jsd",
+    name="Jensen-Shannon",
+    name_zh="JS 散度",
+    family="distillation",
+    year=2024,
+    latex=r"m=\beta p_{\mathrm{teacher}}+(1-\beta)p_{\theta},\quad \mathrm{JSD}_{\beta}(p_{\mathrm{teacher}}\Vert p_{\theta})=\beta D_{\mathrm{KL}}(p_{\mathrm{teacher}}\Vert m)+(1-\beta)D_{\mathrm{KL}}(p_{\theta}\Vert m)",
+    summary_zh="学生和教师一起对混合分布 m 做 KL。β=0.5 时这是对称的 JS 散度，损失落在 0 和 log 2 之间。",
+    intuition_zh="m 同时含有两边的质量，所以一边接近 0 不会把另一边的对数项打到无穷。等高线仍只看学生两个通道的比例。",
+    physics_zh="β 靠近 0 时，梯度方向接近正向 KL，学生要铺开去覆盖教师。β 靠近 1 时接近反向 KL，学生可以丢掉教师的次模式。两种情形下力都会饱和，不像 KL 在零概率处继续变陡。",
+    failure_zh="β 只决定散度的形状，不解决自回归训练和推理看到的前缀不一样。GKD 还要在学生自己采样的序列上计算这条散度；二元图只保留散度本身。",
+    paper_title="On-Policy Distillation of Language Models: Learning from Self-Generated Mistakes",
+    paper_url="https://arxiv.org/abs/2306.13649",
+    implementation_url="",
+    plane="distillation",
+    params=list(_JS_PARAMS),
+    bounded_below=True,
+    keywords=["Jensen-Shannon", "JSD", "distillation"],
+    toy_note_zh="β=0.5 是 Lin 的对称 JS。广义形式来自 GKD，m 是教师和学生的凸组合。序列上的实现还要对每个 token 取平均。",
 )
 
 make_loss(

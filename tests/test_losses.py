@@ -56,6 +56,20 @@ def test_satimp_is_quieter_than_gradient_ascent_near_zero():
     assert abs(sat_thrust[sat_index]) < abs(ga_thrust[ga_index])
 
 
+def test_jsd_matches_symmetric_js_and_stays_nonnegative():
+    plugin = get_loss("jsd")
+    params = plugin.defaults()
+    student = np.linspace(0.05, 0.95, 7)
+    values = plugin.loss(student, 1.0 - student, params)
+    assert np.allclose(values, binary_js(params["teacher"], student), atol=1e-6)
+    assert np.all(values <= np.log(2) + 1e-6)
+    assert abs(float(plugin.loss(params["teacher"], 1.0 - params["teacher"], params))) < 1e-6
+    skewed = dict(params)
+    skewed["beta"] = 0.1
+    skewed_values = plugin.loss(student, 1.0 - student, skewed)
+    assert np.all(skewed_values >= -1e-8)
+
+
 def test_jensen_shannon_toy_stays_bounded():
     plugin = get_loss("jensun")
     values = plugin.loss(np.linspace(0.02, 0.98, 9), np.linspace(0.98, 0.02, 9))
