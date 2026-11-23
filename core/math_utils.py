@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import numpy as np
-from scipy.special import expit
 
 CLIP_LOW = 1e-6
 CLIP_HIGH = 1.0 - 1e-6
@@ -18,7 +17,12 @@ def clip_p(probability) -> np.ndarray:
 
 
 def sigmoid(logits) -> np.ndarray:
-    return expit(as_float(logits))
+    logits = as_float(logits)
+    positive = logits >= 0
+    out = np.empty_like(logits)
+    out[positive] = 1.0 / (1.0 + np.exp(-logits[positive]))
+    out[~positive] = np.exp(logits[~positive]) / (1.0 + np.exp(logits[~positive]))
+    return out
 
 
 def softplus(values) -> np.ndarray:
