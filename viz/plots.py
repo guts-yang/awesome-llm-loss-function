@@ -10,7 +10,7 @@ FONT = "PingFang SC, Noto Sans CJK SC, Arial Unicode MS, sans-serif"
 COLORS = ["#0F6E6E", "#C4491D", "#3D4A8F", "#8A6A12"]
 
 
-def _base(fig, title: str, height: int = 460):
+def _base(fig, title: str, height: int = 480):
     fig.update_layout(
         title=dict(text=title, x=0.0),
         font=dict(family=FONT, size=14, color="#1C2430"),
@@ -23,7 +23,7 @@ def _base(fig, title: str, height: int = 460):
     return fig
 
 
-def surface_figure(x_grid, y_grid, values, x_label: str, y_label: str, y_slice: float | None = None, title: str = "三维损失势能"):
+def surface_figure(x_grid, y_grid, values, x_label: str, y_label: str, y_slice: float | None = None, title: str = "三维势能"):
     figure = go.Figure()
     figure.add_trace(
         go.Surface(
@@ -64,7 +64,7 @@ def surface_figure(x_grid, y_grid, values, x_label: str, y_label: str, y_slice: 
             camera=dict(eye=dict(x=1.45, y=1.45, z=0.9)),
         )
     )
-    return _base(figure, title, height=520)
+    return _base(figure, title, height=480)
 
 
 def _downhill(x_grid, y_grid, values, stride: int = 4):
@@ -79,7 +79,7 @@ def _downhill(x_grid, y_grid, values, stride: int = 4):
     return x_points, y_points, downhill_x / norm, downhill_y / norm
 
 
-def contour_figure(x_grid, y_grid, values, x_label: str, y_label: str, y_slice: float, paths=None, title: str = "二维等高线与下降方向"):
+def contour_figure(x_grid, y_grid, values, x_label: str, y_label: str, y_slice: float, paths=None, title: str = "二维下降"):
     figure = go.Figure()
     figure.add_trace(
         go.Contour(
@@ -128,10 +128,10 @@ def contour_figure(x_grid, y_grid, values, x_label: str, y_label: str, y_slice: 
             )
     figure.update_xaxes(title=x_label, range=[float(x_grid.min()), float(x_grid.max())])
     figure.update_yaxes(title=y_label, range=[float(y_grid.min()), float(y_grid.max())], scaleanchor="x", scaleratio=1)
-    return _base(figure, title, height=520)
+    return _base(figure, title, height=480)
 
 
-def slice_figure(curves, x_label: str, title: str = "一维切面：势能与 logit 推力"):
+def slice_figure(curves, x_label: str, title: str = "一维切面"):
     figure = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.12, subplot_titles=("损失势能", "logit 梯度推力 |dL/dz|"))
     for index, curve in enumerate(curves):
         color = COLORS[index % len(COLORS)]
@@ -158,10 +158,10 @@ def slice_figure(curves, x_label: str, title: str = "一维切面：势能与 lo
     figure.update_xaxes(title_text=x_label, row=2, col=1)
     figure.update_yaxes(title_text="L", row=1, col=1)
     figure.update_yaxes(title_text="|dL/dz|", row=2, col=1)
-    return _base(figure, title, height=560)
+    return _base(figure, title, height=480)
 
 
-def trajectory_figure(runs, title: str = "参数平面上的优化轨迹"):
+def trajectory_figure(runs, title: str = "优化轨迹"):
     figure = go.Figure()
     for index, run in enumerate(runs):
         path = run["result"]["path"]
@@ -181,7 +181,7 @@ def trajectory_figure(runs, title: str = "参数平面上的优化轨迹"):
     return _base(figure, title, height=480)
 
 
-def arc_figure(runs, title: str = "沿轨迹弧长的一维投影"):
+def arc_figure(runs, title: str = "弧长投影"):
     figure = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.12, subplot_titles=("损失", "保留通道概率"))
     for index, run in enumerate(runs):
         result = run["result"]
@@ -207,4 +207,4 @@ def arc_figure(runs, title: str = "沿轨迹弧长的一维投影"):
     figure.update_xaxes(title_text="弧长 s", row=2, col=1)
     figure.update_yaxes(title_text="L", row=1, col=1)
     figure.update_yaxes(title_text="p_r", row=2, col=1)
-    return _base(figure, title, height=560)
+    return _base(figure, title, height=480)
