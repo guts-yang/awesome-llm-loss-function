@@ -1,0 +1,1231 @@
+{
+  "count": 27,
+  "losses": [
+    {
+      "id": "next_token_ce",
+      "name": "Next-token CE",
+      "name_zh": "下一 token 交叉熵",
+      "family": "language_modeling",
+      "family_zh": "语言建模",
+      "year": 2003,
+      "latex": "\\mathcal{L}_{\\mathrm{CE}}=-\\log p_{\\theta}(x_t\\mid x_{<t})",
+      "summary_zh": "自回归语言模型的基本损失：提高下一个正确 token 的概率。",
+      "intuition_zh": "交叉熵只奖励目标 token。概率越低，对数损失下降得越陡，所以模型会把质量集中到当前答案上。",
+      "physics_zh": "对 logit z 而言，dL/dz = p_target - 1。目标概率接近 1 时推力消失，接近 0 时推力维持在 1 附近。这是后面所有偏好损失和遗忘损失的基准力。",
+      "failure_zh": "单纯最大似然会过拟合表面形式，也会把相近答案的概率一起抬高。它没有偏好间隔，也没有遗忘下界。",
+      "paper_title": "A Neural Probabilistic Language Model",
+      "paper_url": "https://www.jmlr.org/papers/volume3/bengio03a/bengio03a.pdf",
+      "implementation_url": "https://github.com/huggingface/transformers",
+      "plane": "lm",
+      "bounded_below": true,
+      "step_mode": "gradient",
+      "keywords": [
+        "cross-entropy",
+        "language modeling"
+      ],
+      "toy_note_zh": "二元玩具里，横轴是目标 token 概率。损失与纵轴无关。",
+      "params": []
+    },
+    {
+      "id": "label_smoothing",
+      "name": "Label smoothing",
+      "name_zh": "标签平滑",
+      "family": "language_modeling",
+      "family_zh": "语言建模",
+      "year": 2016,
+      "latex": "\\mathcal{L}_{\\mathrm{LS}}=-(1-\\epsilon)\\log p_{\\mathrm{target}}-\\epsilon\\log p_{\\mathrm{other}}",
+      "summary_zh": "把一部分概率质量分给非目标 token，避免模型把全部质量压到一个 logit 上。",
+      "intuition_zh": "平滑项是在交叉熵旁边加一个对照 token 的对数惩罚。epsilon 越大，最优点越不愿意把目标概率推到 1。",
+      "physics_zh": "目标通道的 logit 梯度变成 (1-epsilon)(p_target-1) 与对照通道泄漏的叠加。它给最大似然加了一个软上限，后面 Unilogit 的均匀目标用的是同一类机制。",
+      "failure_zh": "平滑过强会抬高不该出现的 token，续写变得发虚。这里的对照项是二元简化，不是对整个词表做均匀平均。",
+      "paper_title": "Rethinking the Inception Architecture for Computer Vision",
+      "paper_url": "https://arxiv.org/abs/1512.00567",
+      "implementation_url": "",
+      "plane": "lm",
+      "bounded_below": true,
+      "step_mode": "gradient",
+      "keywords": [
+        "label smoothing"
+      ],
+      "toy_note_zh": "经典论文来自视觉网络，LLM 训练借用的是同一条平滑规则。图上只保留目标与一个对照 token。",
+      "params": [
+        {
+          "key": "epsilon",
+          "label": "平滑系数 epsilon",
+          "default": 0.1,
+          "minimum": 0.0,
+          "maximum": 0.4,
+          "step": 0.01,
+          "help": "分给对照 token 的概率质量。"
+        }
+      ]
+    },
+    {
+      "id": "ul2_span",
+      "name": "UL2 span CE",
+      "name_zh": "UL2 span 交叉熵",
+      "family": "language_modeling",
+      "family_zh": "语言建模",
+      "year": 2022,
+      "latex": "\\mathcal{L}_{\\mathrm{UL2}}=-\\log p_{\\theta}(x_{\\mathrm{span}}\\mid x_{\\setminus\\mathrm{span}})",
+      "summary_zh": "UL2 把不同跨度的遮盖、前缀语言建模和普通下一 token 混在同一个交叉熵里。",
+      "intuition_zh": "损失的形状仍是负对数似然。UL2 改变的是被预测的 span 和任务混合比例，不是评分函数本身。",
+      "physics_zh": "因此它的 logit 推力和下一 token 交叉熵相同：目标概率靠近 1 时力消失。差别出现在批量里哪些位置产生这条力。",
+      "failure_zh": "如果把 UL2 理解成一种新的几何约束，会高估它。它解决的是去噪任务覆盖，不解决偏好冲突或遗忘无界。",
+      "paper_title": "UL2: Unifying Language Learning Paradigms",
+      "paper_url": "https://arxiv.org/abs/2205.05131",
+      "implementation_url": "",
+      "plane": "lm",
+      "bounded_below": true,
+      "step_mode": "gradient",
+      "keywords": [
+        "UL2",
+        "span corruption"
+      ],
+      "toy_note_zh": "曲面上它与下一 token 交叉熵重合。这是故意保留的：两者的差异在数据构造，不在损失形状。",
+      "params": []
+    },
+    {
+      "id": "bradley_terry",
+      "name": "Bradley-Terry RM",
+      "name_zh": "Bradley-Terry 奖励模型",
+      "family": "alignment",
+      "family_zh": "偏好对齐",
+      "year": 2017,
+      "latex": "\\mathcal{L}_{\\mathrm{BT}}=-\\log\\sigma(\\beta\\log p_w-\\beta\\log p_l)",
+      "summary_zh": "奖励模型的成对损失。这里把奖励取成对数概率，用来对照后面的策略损失。",
+      "intuition_zh": "它和 gamma 为 0 的 SimPO 同形。差别只在它训练的是奖励头，不直接更新策略。",
+      "physics_zh": "sigmoid 把任意大的分差压进 (0,1)。分差继续扩大时梯度消失，所以奖励模型可以很有信心，同时不再提供训练信号。",
+      "failure_zh": "奖励如果没有长度和参考模型校正，会偏向高概率的短回答。PPO 再去追逐这个奖励时，偏差会被放大。",
+      "paper_title": "Deep Reinforcement Learning from Human Preferences",
+      "paper_url": "https://arxiv.org/abs/1706.03741",
+      "implementation_url": "https://github.com/huggingface/trl",
+      "plane": "alignment",
+      "bounded_below": true,
+      "step_mode": "gradient",
+      "keywords": [
+        "Bradley-Terry",
+        "reward model",
+        "RLHF"
+      ],
+      "toy_note_zh": "奖励被直接取为对数概率，用来和 DPO 的隐式奖励对照。",
+      "params": [
+        {
+          "key": "beta",
+          "label": "奖励缩放 beta",
+          "default": 1.0,
+          "minimum": 0.2,
+          "maximum": 4.0,
+          "step": 0.1,
+          "help": ""
+        }
+      ]
+    },
+    {
+      "id": "ppo_clip",
+      "name": "PPO clip",
+      "name_zh": "PPO 裁剪目标",
+      "family": "alignment",
+      "family_zh": "偏好对齐",
+      "year": 2017,
+      "latex": "\\mathcal{L}_{\\mathrm{PPO}}=-\\mathbb{E}\\left[\\min(r_t A_t,\\mathrm{clip}(r_t,1-\\epsilon,1+\\epsilon)A_t)\\right]",
+      "summary_zh": "用新旧策略的概率比裁剪优势，限制一次更新离开旧策略多远。",
+      "intuition_zh": "优势为正时，概率比超过 1+epsilon 就不再加分。优势为负时，概率比低于 1-epsilon 就不再减分。",
+      "physics_zh": "裁剪在概率平面上切出一块平坦的信任区域。epsilon 是这块区域的宽度。偏好回答用正优势，落选回答用负优势。",
+      "failure_zh": "裁剪只限制概率比，不直接限制 KL。旧策略概率估计偏了，信任区域会切错位置。这里也没有单独画 KL 奖励惩罚。",
+      "paper_title": "Proximal Policy Optimization Algorithms",
+      "paper_url": "https://arxiv.org/abs/1707.06347",
+      "implementation_url": "https://github.com/huggingface/trl",
+      "plane": "alignment",
+      "bounded_below": false,
+      "step_mode": "gradient",
+      "keywords": [
+        "PPO",
+        "RLHF"
+      ],
+      "toy_note_zh": "二元动作上的裁剪目标。InstructGPT 的完整目标还包含相对参考模型的 KL 惩罚。",
+      "params": [
+        {
+          "key": "epsilon",
+          "label": "裁剪宽度 epsilon",
+          "default": 0.2,
+          "minimum": 0.05,
+          "maximum": 0.5,
+          "step": 0.05,
+          "help": ""
+        },
+        {
+          "key": "advantage",
+          "label": "优势 A",
+          "default": 1.0,
+          "minimum": 0.2,
+          "maximum": 3.0,
+          "step": 0.1,
+          "help": ""
+        },
+        {
+          "key": "p_old_w",
+          "label": "旧策略偏好概率",
+          "default": 0.45,
+          "minimum": 0.05,
+          "maximum": 0.95,
+          "step": 0.01,
+          "help": ""
+        },
+        {
+          "key": "p_old_l",
+          "label": "旧策略落选概率",
+          "default": 0.4,
+          "minimum": 0.05,
+          "maximum": 0.95,
+          "step": 0.01,
+          "help": ""
+        }
+      ]
+    },
+    {
+      "id": "dpo",
+      "name": "DPO",
+      "name_zh": "直接偏好优化",
+      "family": "alignment",
+      "family_zh": "偏好对齐",
+      "year": 2023,
+      "latex": "\\mathcal{L}_{\\mathrm{DPO}}=-\\log\\sigma\\!\\left(\\beta\\log\\frac{\\pi_\\theta(y_w)}{\\pi_{\\mathrm{ref}}(y_w)}-\\beta\\log\\frac{\\pi_\\theta(y_l)}{\\pi_{\\mathrm{ref}}(y_l)}\\right)",
+      "summary_zh": "用偏好对直接训练策略，隐式奖励是相对参考模型的对数概率差。",
+      "intuition_zh": "损失只看 chosen 与 rejected 的对数比。参考模型把这个比锚定在微调之前的策略上。",
+      "physics_zh": "beta 是这个势阱的温度。参考概率升高时，同样的当前概率得到的奖励变小，等高线跟着平移。没有参考模型时，这条平移就消失了，那是 SimPO 的位置。",
+      "failure_zh": "chosen 和 rejected 很接近时，对数比的梯度很尖，容易把概率质量从相邻的正确回答里挤走。",
+      "paper_title": "Direct Preference Optimization: Your Language Model is Secretly a Reward Model",
+      "paper_url": "https://arxiv.org/abs/2305.18290",
+      "implementation_url": "https://github.com/eric-mitchell/direct-preference-optimization",
+      "plane": "alignment",
+      "bounded_below": true,
+      "step_mode": "gradient",
+      "keywords": [
+        "DPO",
+        "preference"
+      ],
+      "toy_note_zh": "",
+      "params": [
+        {
+          "key": "beta",
+          "label": "温度 beta",
+          "default": 0.1,
+          "minimum": 0.02,
+          "maximum": 1.0,
+          "step": 0.02,
+          "help": "越大，偏好间隔被放得越陡。"
+        },
+        {
+          "key": "p_ref_w",
+          "label": "参考模型偏好概率",
+          "default": 0.55,
+          "minimum": 0.05,
+          "maximum": 0.95,
+          "step": 0.01,
+          "help": ""
+        },
+        {
+          "key": "p_ref_l",
+          "label": "参考模型落选概率",
+          "default": 0.45,
+          "minimum": 0.05,
+          "maximum": 0.95,
+          "step": 0.01,
+          "help": ""
+        }
+      ]
+    },
+    {
+      "id": "ipo",
+      "name": "IPO",
+      "name_zh": "身份偏好优化",
+      "family": "alignment",
+      "family_zh": "偏好对齐",
+      "year": 2023,
+      "latex": "\\mathcal{L}_{\\mathrm{IPO}}=\\left(\\log\\frac{\\pi_\\theta(y_w)}{\\pi_{\\mathrm{ref}}(y_w)}-\\log\\frac{\\pi_\\theta(y_l)}{\\pi_{\\mathrm{ref}}(y_l)}-\\frac{1}{2\\beta}\\right)^2",
+      "summary_zh": "不使用 logistic，而是把对数概率间隔回归到一个固定目标 1/(2β)。",
+      "intuition_zh": "DPO 的 sigmoid 在间隔已经很大时梯度消失。IPO 改成平方损失，间隔不足和间隔过大都会被拉回来。",
+      "physics_zh": "目标间隔是 1/(2β)。β 越小，要求的对数间隔越大，势阱的最低点离对角线越远。",
+      "failure_zh": "平方项两侧都有力。数据噪声会把已经分开的回答再拉近，欠拟合和过拟合表现为间隔偏离目标，而不是概率饱和。",
+      "paper_title": "A General Theoretical Paradigm to Understand Learning from Human Preferences",
+      "paper_url": "https://arxiv.org/abs/2310.12036",
+      "implementation_url": "https://github.com/huggingface/trl",
+      "plane": "alignment",
+      "bounded_below": true,
+      "step_mode": "gradient",
+      "keywords": [
+        "IPO",
+        "preference"
+      ],
+      "toy_note_zh": "",
+      "params": [
+        {
+          "key": "beta",
+          "label": "温度 beta",
+          "default": 0.1,
+          "minimum": 0.02,
+          "maximum": 1.0,
+          "step": 0.02,
+          "help": "越大，偏好间隔被放得越陡。"
+        },
+        {
+          "key": "p_ref_w",
+          "label": "参考模型偏好概率",
+          "default": 0.55,
+          "minimum": 0.05,
+          "maximum": 0.95,
+          "step": 0.01,
+          "help": ""
+        },
+        {
+          "key": "p_ref_l",
+          "label": "参考模型落选概率",
+          "default": 0.45,
+          "minimum": 0.05,
+          "maximum": 0.95,
+          "step": 0.01,
+          "help": ""
+        }
+      ]
+    },
+    {
+      "id": "slic",
+      "name": "SLiC-HF",
+      "name_zh": "序列似然校准",
+      "family": "alignment",
+      "family_zh": "偏好对齐",
+      "year": 2023,
+      "latex": "\\mathcal{L}_{\\mathrm{SLiC}}=\\max(0,\\delta-\\log\\pi(y_w)+\\log\\pi(y_l))-\\lambda\\log\\pi(y_w)",
+      "summary_zh": "用铰链间隔把偏好回答的对数概率抬到落选回答之上，并用似然项保住流畅度。",
+      "intuition_zh": "间隔已经大于 delta 时，排序项的力是 0，只剩监督项。间隔不够时，两条回答受到方向相反的常数力。",
+      "physics_zh": "铰链造成等高线上的折线。delta 决定折线离对角线多远，lambda 决定偏好回答那一侧还有多强的似然拉力。",
+      "failure_zh": "铰链在间隔满足后完全停力，不能继续纠正校准。delta 选得比数据里的自然间隔还大时，模型会过度压低落选回答。",
+      "paper_title": "SLiC-HF: Sequence Likelihood Calibration with Human Feedback",
+      "paper_url": "https://arxiv.org/abs/2305.10425",
+      "implementation_url": "https://github.com/huggingface/trl",
+      "plane": "alignment",
+      "bounded_below": true,
+      "step_mode": "gradient",
+      "keywords": [
+        "SLiC",
+        "preference"
+      ],
+      "toy_note_zh": "",
+      "params": [
+        {
+          "key": "delta",
+          "label": "间隔 delta",
+          "default": 0.5,
+          "minimum": 0.0,
+          "maximum": 2.0,
+          "step": 0.05,
+          "help": ""
+        },
+        {
+          "key": "lam",
+          "label": "似然权重 lambda",
+          "default": 0.1,
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "step": 0.05,
+          "help": ""
+        }
+      ]
+    },
+    {
+      "id": "grpo",
+      "name": "GRPO",
+      "name_zh": "组相对策略优化",
+      "family": "alignment",
+      "family_zh": "偏好对齐",
+      "year": 2024,
+      "latex": "\\mathcal{L}_{\\mathrm{GRPO}}=-\\sum_i \\hat A_i\\log\\pi_\\theta(y_i)+\\frac{\\beta}{2}\\left(\\log\\frac{\\pi_\\theta}{\\pi_{\\mathrm{ref}}}\\right)^2",
+      "summary_zh": "同一道题的一组采样互相比较，用组内标准化奖励当优势，不再训练单独的价值网络。",
+      "intuition_zh": "两组奖励一高一低时，优势大约是 +1 和 -1。策略项把高奖励回答的对数概率抬高，把低奖励回答压低，平方项把两者拉回参考模型。",
+      "physics_zh": "组内均值和标准差决定力的方向。beta 控制回到参考模型的弹簧有多硬。二元玩具用一个平方对数比代替序列 KL。",
+      "failure_zh": "组内奖励没有差别时优势为 0，策略项消失。奖励只反映格式或长度时，标准化会把这个假信号放大成稳定的更新方向。",
+      "paper_title": "DeepSeekMath: Pushing the Limits of Mathematical Reasoning in Open Language Models",
+      "paper_url": "https://arxiv.org/abs/2402.03300",
+      "implementation_url": "https://github.com/huggingface/trl",
+      "plane": "alignment",
+      "bounded_below": false,
+      "step_mode": "gradient",
+      "keywords": [
+        "GRPO",
+        "RL"
+      ],
+      "toy_note_zh": "平方对数比是序列 KL 的二元替身，用来保留“不要离开参考模型太远”这一项。",
+      "params": [
+        {
+          "key": "beta",
+          "label": "KL 权重 beta",
+          "default": 0.04,
+          "minimum": 0.0,
+          "maximum": 0.5,
+          "step": 0.01,
+          "help": ""
+        },
+        {
+          "key": "reward_w",
+          "label": "偏好回答奖励",
+          "default": 1.0,
+          "minimum": -1.0,
+          "maximum": 2.0,
+          "step": 0.1,
+          "help": ""
+        },
+        {
+          "key": "reward_l",
+          "label": "落选回答奖励",
+          "default": 0.0,
+          "minimum": -1.0,
+          "maximum": 2.0,
+          "step": 0.1,
+          "help": ""
+        },
+        {
+          "key": "p_ref_w",
+          "label": "参考模型偏好概率",
+          "default": 0.5,
+          "minimum": 0.05,
+          "maximum": 0.95,
+          "step": 0.01,
+          "help": ""
+        },
+        {
+          "key": "p_ref_l",
+          "label": "参考模型落选概率",
+          "default": 0.5,
+          "minimum": 0.05,
+          "maximum": 0.95,
+          "step": 0.01,
+          "help": ""
+        }
+      ]
+    },
+    {
+      "id": "kto",
+      "name": "KTO",
+      "name_zh": "前景理论对齐",
+      "family": "alignment",
+      "family_zh": "偏好对齐",
+      "year": 2024,
+      "latex": "\\mathcal{L}_{\\mathrm{KTO}}=\\lambda_D\\left(1-\\sigma(\\beta(r_\\theta(y_+)-z_0))\\right)+\\lambda_U\\left(1-\\sigma(\\beta(z_0-r_\\theta(y_-)))\\right)",
+      "summary_zh": "不需要成对偏好。好回答和坏回答各自相对一个 KL 参考点 z0 计算得失。",
+      "intuition_zh": "好回答的损失在奖励超过 z0 后饱和，坏回答的损失在奖励低于 z0 后饱和。两条通道不必来自同一次采样。",
+      "physics_zh": "z0 是势阱的分水岭。beta 决定饱和速度，lambda_d 与 lambda_u 决定两侧的力谁更大。",
+      "failure_zh": "z0 通常要用当前策略相对参考模型的 KL 来估计。把它固定错了，好回答和坏回答会一起被推向同一个方向。",
+      "paper_title": "KTO: Model Alignment as Prospect Theoretic Optimization",
+      "paper_url": "https://arxiv.org/abs/2402.01306",
+      "implementation_url": "https://github.com/ContextualAI/HALOs",
+      "plane": "alignment",
+      "bounded_below": true,
+      "step_mode": "gradient",
+      "keywords": [
+        "KTO",
+        "preference"
+      ],
+      "toy_note_zh": "z0 在真实训练里是批内 KL 估计，这里做成可调常数。",
+      "params": [
+        {
+          "key": "beta",
+          "label": "温度 beta",
+          "default": 0.1,
+          "minimum": 0.02,
+          "maximum": 1.0,
+          "step": 0.02,
+          "help": ""
+        },
+        {
+          "key": "z0",
+          "label": "参考点 z0",
+          "default": 0.0,
+          "minimum": -1.0,
+          "maximum": 1.0,
+          "step": 0.05,
+          "help": ""
+        },
+        {
+          "key": "lambda_d",
+          "label": "好回答权重",
+          "default": 1.0,
+          "minimum": 0.2,
+          "maximum": 2.0,
+          "step": 0.1,
+          "help": ""
+        },
+        {
+          "key": "lambda_u",
+          "label": "坏回答权重",
+          "default": 1.0,
+          "minimum": 0.2,
+          "maximum": 2.0,
+          "step": 0.1,
+          "help": ""
+        },
+        {
+          "key": "p_ref_w",
+          "label": "参考模型偏好概率",
+          "default": 0.55,
+          "minimum": 0.05,
+          "maximum": 0.95,
+          "step": 0.01,
+          "help": ""
+        },
+        {
+          "key": "p_ref_l",
+          "label": "参考模型落选概率",
+          "default": 0.45,
+          "minimum": 0.05,
+          "maximum": 0.95,
+          "step": 0.01,
+          "help": ""
+        }
+      ]
+    },
+    {
+      "id": "orpo",
+      "name": "ORPO",
+      "name_zh": "赔率比偏好优化",
+      "family": "alignment",
+      "family_zh": "偏好对齐",
+      "year": 2024,
+      "latex": "\\mathcal{L}_{\\mathrm{ORPO}}=-\\log p_\\theta(y_w)+\\lambda\\left(-\\log\\sigma\\!\\left(\\log\\frac{\\mathrm{odds}(y_w)}{\\mathrm{odds}(y_l)}\\right)\\right)",
+      "summary_zh": "把监督微调的负对数似然和赔率比惩罚加在一起，不使用参考模型。",
+      "intuition_zh": "第一项把偏好回答的概率往上拉，第二项要求它的赔率 p/(1-p) 高于落选回答。",
+      "physics_zh": "监督项防止 SimPO 那种两条概率一起下降。赔率比在概率靠近 0 或 1 时比对数概率差更敏感。",
+      "failure_zh": "lambda 过大时，赔率项会压过似然项，偏好回答的绝对概率反而下降。",
+      "paper_title": "ORPO: Monolithic Preference Optimization without Reference Model",
+      "paper_url": "https://arxiv.org/abs/2403.07691",
+      "implementation_url": "https://github.com/xfactlab/orpo",
+      "plane": "alignment",
+      "bounded_below": true,
+      "step_mode": "gradient",
+      "keywords": [
+        "ORPO",
+        "preference"
+      ],
+      "toy_note_zh": "",
+      "params": [
+        {
+          "key": "lam",
+          "label": "赔率权重 lambda",
+          "default": 1.0,
+          "minimum": 0.0,
+          "maximum": 4.0,
+          "step": 0.1,
+          "help": ""
+        }
+      ]
+    },
+    {
+      "id": "simpo",
+      "name": "SimPO",
+      "name_zh": "简单偏好优化",
+      "family": "alignment",
+      "family_zh": "偏好对齐",
+      "year": 2024,
+      "latex": "\\mathcal{L}_{\\mathrm{SimPO}}=-\\log\\sigma\\!\\left(\\frac{\\beta}{|y_w|}\\log\\pi_\\theta(y_w)-\\frac{\\beta}{|y_l|}\\log\\pi_\\theta(y_l)-\\gamma\\right)",
+      "summary_zh": "去掉参考模型，直接用长度归一化的对数概率差，再减去一个间隔 gamma。",
+      "intuition_zh": "等高线只由 p_w 和 p_l 的比值决定。gamma 把决策边界从对角线推开，要求偏好回答高出一个固定余量。",
+      "physics_zh": "与 DPO 相比，少了参考模型造成的平移。gamma 是纯间隔，beta 仍控制斜率。二元玩具里两条回答的长度都取 1。",
+      "failure_zh": "没有参考模型时，策略可以同时压低两条回答的概率，只要偏好那条相对更高。长度归一化不准确时，长回答会被系统性压低。",
+      "paper_title": "SimPO: Simple Preference Optimization with a Reference-Free Reward",
+      "paper_url": "https://arxiv.org/abs/2405.14734",
+      "implementation_url": "https://github.com/princeton-nlp/SimPO",
+      "plane": "alignment",
+      "bounded_below": true,
+      "step_mode": "gradient",
+      "keywords": [
+        "SimPO",
+        "preference"
+      ],
+      "toy_note_zh": "长度归一化在二元玩具中取 |y|=1。",
+      "params": [
+        {
+          "key": "beta",
+          "label": "温度 beta",
+          "default": 2.0,
+          "minimum": 0.2,
+          "maximum": 5.0,
+          "step": 0.1,
+          "help": ""
+        },
+        {
+          "key": "gamma",
+          "label": "间隔 gamma",
+          "default": 0.5,
+          "minimum": 0.0,
+          "maximum": 2.0,
+          "step": 0.05,
+          "help": "偏好回答需要高出的对数余量。"
+        }
+      ]
+    },
+    {
+      "id": "forward_kl",
+      "name": "Forward KL",
+      "name_zh": "正向 KL",
+      "family": "distillation",
+      "family_zh": "蒸馏",
+      "year": 2015,
+      "latex": "D_{\\mathrm{KL}}(p_{\\mathrm{teacher}}\\Vert p_{\\theta})=\\sum_t p_{\\mathrm{teacher}}(t)\\log\\frac{p_{\\mathrm{teacher}}(t)}{p_{\\theta}(t)}",
+      "summary_zh": "学生去覆盖教师的全部质量。教师有概率的地方，学生不能放空。",
+      "intuition_zh": "等高线只依赖 x:y 的比例。把两个通道同时放大不会改变损失，因为学生分布先被归一化。",
+      "physics_zh": "正向 KL 是模式覆盖。学生若在教师的某个模式上接近 0，损失以对数速度上升，所以它倾向于把质量铺开。",
+      "failure_zh": "教师自己是错的时候，正向 KL 会把错误模式也完整复制下来。遗忘里如果拿它当保留项，这是优点；拿它当遗忘项，则会继续覆盖不该保留的答案。",
+      "paper_title": "Distilling the Knowledge in a Neural Network",
+      "paper_url": "https://arxiv.org/abs/1503.02531",
+      "implementation_url": "",
+      "plane": "distillation",
+      "bounded_below": true,
+      "step_mode": "gradient",
+      "keywords": [
+        "forward KL",
+        "distillation"
+      ],
+      "toy_note_zh": "二元分布先做归一化，所以曲面对角线方向是平的。",
+      "params": [
+        {
+          "key": "teacher",
+          "label": "教师在第一类上的概率",
+          "default": 0.8,
+          "minimum": 0.05,
+          "maximum": 0.95,
+          "step": 0.01,
+          "help": ""
+        }
+      ]
+    },
+    {
+      "id": "reverse_kl",
+      "name": "Reverse KL",
+      "name_zh": "反向 KL",
+      "family": "distillation",
+      "family_zh": "蒸馏",
+      "year": 2023,
+      "latex": "D_{\\mathrm{KL}}(p_{\\theta}\\Vert p_{\\mathrm{teacher}})=\\sum_t p_{\\theta}(t)\\log\\frac{p_{\\theta}(t)}{p_{\\mathrm{teacher}}(t)}",
+      "summary_zh": "学生只需要把自己的质量放在教师也认可的模式上，可以丢掉教师的其他模式。",
+      "intuition_zh": "反向 KL 惩罚学生放到教师低概率处的质量。它允许学生比教师更尖。",
+      "physics_zh": "这是模式寻求。MiniLLM 用它蒸馏大模型，是为了避免正向 KL 把学生训得又平又散。力集中在学生当前的模式上。",
+      "failure_zh": "学生可以合法地忽略教师的次模式。任务真的需要那些次模式时，反向 KL 会看起来损失很低，覆盖却不完整。",
+      "paper_title": "MiniLLM: Knowledge Distillation of Large Language Models",
+      "paper_url": "https://arxiv.org/abs/2306.08543",
+      "implementation_url": "",
+      "plane": "distillation",
+      "bounded_below": true,
+      "step_mode": "gradient",
+      "keywords": [
+        "reverse KL",
+        "distillation"
+      ],
+      "toy_note_zh": "",
+      "params": [
+        {
+          "key": "teacher",
+          "label": "教师在第一类上的概率",
+          "default": 0.8,
+          "minimum": 0.05,
+          "maximum": 0.95,
+          "step": 0.01,
+          "help": ""
+        }
+      ]
+    },
+    {
+      "id": "rkld",
+      "name": "RKLD",
+      "name_zh": "反向减正向 KL",
+      "family": "distillation",
+      "family_zh": "蒸馏",
+      "year": 2024,
+      "latex": "\\mathcal{L}_{\\mathrm{RKLD}}=D_{\\mathrm{KL}}(p_{\\theta}\\Vert p_{\\mathrm{ref}})-D_{\\mathrm{KL}}(p_{\\mathrm{ref}}\\Vert p_{\\theta})",
+      "summary_zh": "用反向 KL 减去正向 KL，保留“把学生推离教师模式”的部分，抵消单纯覆盖带来的力。",
+      "intuition_zh": "两个 KL 都非负，它们的差可正可负。学生比教师更尖时，反向项占优；学生为了覆盖而铺开时，正向项把差拉回来。",
+      "physics_zh": "差值把模式寻求和模式覆盖拆开。遗忘实现里常把反向项用在遗忘分布上，把正向项用在保留分布上；这里先把两个方向放在同一对概率上。",
+      "failure_zh": "差没有下界保证，读曲面时不能把负值理解成概率误差。序列上的 RKLD 还要按 token 求和，二元图只保留符号方向。",
+      "paper_title": "MiniLLM: Knowledge Distillation of Large Language Models",
+      "paper_url": "https://arxiv.org/abs/2306.08543",
+      "implementation_url": "",
+      "plane": "distillation",
+      "bounded_below": false,
+      "step_mode": "gradient",
+      "keywords": [
+        "RKLD",
+        "KL"
+      ],
+      "toy_note_zh": "这是同一对学生分布上的 RKL-FKL，用来看两种 KL 的方向差。遗忘论文里的实现通常把两项分配到遗忘集和保留集。",
+      "params": [
+        {
+          "key": "teacher",
+          "label": "教师在第一类上的概率",
+          "default": 0.8,
+          "minimum": 0.05,
+          "maximum": 0.95,
+          "step": 0.01,
+          "help": ""
+        }
+      ]
+    },
+    {
+      "id": "whp",
+      "name": "WHP",
+      "name_zh": "替代答案微调",
+      "family": "unlearning",
+      "family_zh": "机器遗忘",
+      "year": 2023,
+      "latex": "\\mathcal{L}_{\\mathrm{WHP}}=-\\log\\frac{p_{\\mathrm{alt}}}{p_f+p_{\\mathrm{alt}}}",
+      "summary_zh": "不把原答案的对数概率往下推，而在替代续写上做普通交叉熵。Who's Harry Potter 用的是这条路线。",
+      "intuition_zh": "损失只关心替代答案在这对概率里的份额。原答案概率下降是归一化的副作用，不是无界的梯度上升。",
+      "physics_zh": "最低点在 p_f 相对 p_alt 很小的方向，损失本身有下界 0。力来自份额而不是 log p_f 的绝对高度，所以不会出现越忘越猛的 logit 推力。",
+      "failure_zh": "替代语料如果和原知识写在相邻句式里，交叉熵会把相邻事实一起改写。没有替代答案时，这条损失无从定义。",
+      "paper_title": "Who's Harry Potter? Approximate Unlearning in LLMs",
+      "paper_url": "https://arxiv.org/abs/2310.02238",
+      "implementation_url": "",
+      "plane": "unlearning",
+      "bounded_below": true,
+      "step_mode": "gradient",
+      "keywords": [
+        "Harry Potter",
+        "WHP",
+        "alternative label"
+      ],
+      "toy_note_zh": "纵轴是替代续写的概率。真实方法在新答案的 token 上做交叉熵。",
+      "params": []
+    },
+    {
+      "id": "ga_kl",
+      "name": "GA + KL",
+      "name_zh": "梯度上升加 KL",
+      "family": "unlearning",
+      "family_zh": "机器遗忘",
+      "year": 2024,
+      "latex": "\\mathcal{L}_{\\mathrm{GA+KL}}=\\log p_{\\theta}(y_f)+\\beta\\, D_{\\mathrm{KL}}\\!\\left(p_{\\theta}(\\cdot\\mid x_r)\\Vert p_{\\mathrm{ref}}(\\cdot\\mid x_r)\\right)",
+      "summary_zh": "遗忘答案仍做梯度上升，保留分布用 KL 锚在参考模型上。",
+      "intuition_zh": "KL 的最低点在 p_r = p_ref，不像交叉熵那样把保留概率一直推向 1。",
+      "physics_zh": "beta 是弹簧刚度。它限制保留通道离开原模型的距离，但不改变遗忘通道在 p_f→0 时推力趋向 1 的事实。",
+      "failure_zh": "遗忘集和保留集的表示重叠时，KL 锚会和梯度上升对着拉，结果常常是两边都没到位，或者学习率一大仍从遗忘通道崩掉。",
+      "paper_title": "Machine Unlearning of Pre-trained Large Language Models",
+      "paper_url": "https://arxiv.org/abs/2402.15159",
+      "implementation_url": "https://github.com/locuslab/tofu",
+      "plane": "unlearning",
+      "bounded_below": false,
+      "step_mode": "gradient",
+      "keywords": [
+        "KL",
+        "gradient ascent"
+      ],
+      "toy_note_zh": "KL 写在伯努利保留通道上，对应序列实现里保留提示上的 token KL。",
+      "params": [
+        {
+          "key": "beta",
+          "label": "KL 权重 beta",
+          "default": 0.5,
+          "minimum": 0.0,
+          "maximum": 4.0,
+          "step": 0.05,
+          "help": ""
+        },
+        {
+          "key": "p_ref",
+          "label": "参考保留概率",
+          "default": 0.7,
+          "minimum": 0.05,
+          "maximum": 0.95,
+          "step": 0.01,
+          "help": ""
+        }
+      ]
+    },
+    {
+      "id": "graddiff",
+      "name": "GradDiff",
+      "name_zh": "梯度差",
+      "family": "unlearning",
+      "family_zh": "机器遗忘",
+      "year": 2024,
+      "latex": "\\mathcal{L}_{\\mathrm{GradDiff}}=\\log p_{\\theta}(y_f\\mid x)-\\log p_{\\theta}(y_r\\mid x)",
+      "summary_zh": "遗忘集上做梯度上升，保留集上继续做交叉熵。",
+      "intuition_zh": "损失沿 p_f 下降、沿 p_r 上升的方向变小。它同时要求忘掉一个答案、记住另一个答案。",
+      "physics_zh": "两条力分别是 1-p_f 和 p_r-1 的 logit 梯度。保留项有下界 0 附近的停止点，遗忘项没有。合力和两条任务的特征夹角有关，夹角小的时候保留梯度抵消不了遗忘梯度在相邻方向上的分量。",
+      "failure_zh": "保留集覆盖不到的相邻知识仍会被带走。遗忘项无界，训练久了保留项也会被淹没。",
+      "paper_title": "TOFU: A Task of Fictitious Unlearning for LLMs",
+      "paper_url": "https://arxiv.org/abs/2401.06121",
+      "implementation_url": "https://github.com/locuslab/tofu",
+      "plane": "unlearning",
+      "bounded_below": false,
+      "step_mode": "gradient",
+      "keywords": [
+        "GradDiff",
+        "gradient difference"
+      ],
+      "toy_note_zh": "",
+      "params": []
+    },
+    {
+      "id": "ga",
+      "name": "Gradient Ascent",
+      "name_zh": "梯度上升",
+      "family": "unlearning",
+      "family_zh": "机器遗忘",
+      "year": 2024,
+      "latex": "\\mathcal{L}_{\\mathrm{GA}}=\\log p_{\\theta}(y_f\\mid x)",
+      "summary_zh": "把遗忘答案的交叉熵翻号。最小化这个损失就是在降低遗忘答案的概率。",
+      "intuition_zh": "p_f 越小，损失越负。曲面向概率 0 的方向无限下降，没有坑底。",
+      "physics_zh": "令 p=σ(z)。对 logit 的导数是 1-p。p 趋向 0 时导数趋向 1，推力停在最大值，不会自己关掉。优化器可以一直把这个 token 往下压，并把纠缠在一起的相邻 logit 带走。",
+      "failure_zh": "遗忘集稍大、学习率稍高，模型就会塌成拒答、复读或胡言。TOFU 一类基准里它是强遗忘、差效用的参照。",
+      "paper_title": "TOFU: A Task of Fictitious Unlearning for LLMs",
+      "paper_url": "https://arxiv.org/abs/2401.06121",
+      "implementation_url": "https://github.com/locuslab/tofu",
+      "plane": "unlearning",
+      "bounded_below": false,
+      "step_mode": "gradient",
+      "keywords": [
+        "gradient ascent",
+        "GA",
+        "TOFU"
+      ],
+      "toy_note_zh": "纵轴不进入损失。能力保持要靠别的项，或者靠参数平面上的投影。",
+      "params": []
+    },
+    {
+      "id": "npo",
+      "name": "NPO",
+      "name_zh": "负偏好优化",
+      "family": "unlearning",
+      "family_zh": "机器遗忘",
+      "year": 2024,
+      "latex": "\\mathcal{L}_{\\mathrm{NPO}}=-\\frac{2}{\\beta}\\log\\sigma\\!\\left(-\\beta\\log\\frac{\\pi_{\\theta}(y_f)}{\\pi_{\\mathrm{ref}}(y_f)}\\right)",
+      "summary_zh": "把遗忘回答当成偏好优化里的落选回答，让遗忘损失在概率变低后自动失去梯度。",
+      "intuition_zh": "p_f 远低于参考模型时，sigmoid 饱和，损失贴着 0。它不再像梯度上升那样越忘越有力。",
+      "physics_zh": "对 logit 的推力正比于 1-σ(-β log(p/p_ref))，再乘上 (1-p)。p 趋向 0 时第一项指数衰减，推力归零。β 越小，开始减速的区间越宽。图上的保留交叉熵是可选锚，权重可以调到 0。",
+      "failure_zh": "参考模型如果已经把遗忘答案写得很深，log(p/p_ref) 要降很多才饱和，早期更新仍接近梯度上升。只调 β 不能解决保留集里没有覆盖到的相邻事实。",
+      "paper_title": "Negative Preference Optimization: From Catastrophic Collapse to Effective Unlearning",
+      "paper_url": "https://arxiv.org/abs/2404.05868",
+      "implementation_url": "https://github.com/licong-lin/negative-preference-optimization",
+      "plane": "unlearning",
+      "bounded_below": true,
+      "step_mode": "gradient",
+      "keywords": [
+        "NPO",
+        "negative preference"
+      ],
+      "toy_note_zh": "公式主体是论文中的遗忘项。保留交叉熵是可选附加项，默认权重为 0。",
+      "params": [
+        {
+          "key": "beta",
+          "label": "温度 beta",
+          "default": 2.0,
+          "minimum": 0.1,
+          "maximum": 5.0,
+          "step": 0.1,
+          "help": "序列实现常用 0.1。单个 token 的对数概率尺度更小，玩具默认放大 beta，饱和才会落在概率轴上。"
+        },
+        {
+          "key": "p_ref",
+          "label": "参考遗忘概率",
+          "default": 0.6,
+          "minimum": 0.05,
+          "maximum": 0.95,
+          "step": 0.01,
+          "help": ""
+        },
+        {
+          "key": "lam",
+          "label": "保留交叉熵权重",
+          "default": 0.0,
+          "minimum": 0.0,
+          "maximum": 2.0,
+          "step": 0.05,
+          "help": ""
+        }
+      ]
+    },
+    {
+      "id": "rmu",
+      "name": "RMU",
+      "name_zh": "表示错向",
+      "family": "unlearning",
+      "family_zh": "机器遗忘",
+      "year": 2024,
+      "latex": "\\mathcal{L}_{\\mathrm{RMU}}=\\lVert h_f-c\\,u\\rVert_2^2+\\alpha\\lVert h_r-h_{\\mathrm{ref}}\\rVert_2^2",
+      "summary_zh": "WMDP 的表示错向：遗忘激活被拉向一个随机方向，保留激活被拉回原模型。",
+      "intuition_zh": "概率平面上这是两个二次坑。遗忘通道的坑在噪声目标，保留通道的坑在参考概率。两个方向都有下界。",
+      "physics_zh": "alpha 决定保留弹簧有多硬。二次损失的梯度随误差线性下降，靠近目标就停，不像 log p 在边界上维持满推力。参数平面里，这两个坑分别沿遗忘特征和保留特征打开。",
+      "failure_zh": "随机方向如果落进仍被读出的子空间，模型会改口而不是遗忘。系数 c 过大时，遗忘层的激活幅度异常，下游层会跟着失真。",
+      "paper_title": "The WMDP Benchmark: Measuring and Reducing Malicious Use With Unlearning",
+      "paper_url": "https://arxiv.org/abs/2403.03218",
+      "implementation_url": "https://github.com/centerforaisafety/wmdp",
+      "plane": "unlearning",
+      "bounded_below": true,
+      "step_mode": "gradient",
+      "keywords": [
+        "RMU",
+        "representation misdirection",
+        "WMDP"
+      ],
+      "toy_note_zh": "隐藏状态上的平方距离被压成两个概率通道上的二次项，用来保留“两边都有坑底”这一几何。",
+      "params": [
+        {
+          "key": "noise",
+          "label": "遗忘通道噪声目标",
+          "default": 0.15,
+          "minimum": 0.0,
+          "maximum": 0.5,
+          "step": 0.01,
+          "help": ""
+        },
+        {
+          "key": "alpha",
+          "label": "保留权重 alpha",
+          "default": 1.0,
+          "minimum": 0.0,
+          "maximum": 5.0,
+          "step": 0.1,
+          "help": ""
+        },
+        {
+          "key": "p_ref",
+          "label": "参考保留概率",
+          "default": 0.75,
+          "minimum": 0.05,
+          "maximum": 0.95,
+          "step": 0.01,
+          "help": ""
+        }
+      ]
+    },
+    {
+      "id": "simnpo",
+      "name": "SimNPO",
+      "name_zh": "简单负偏好优化",
+      "family": "unlearning",
+      "family_zh": "机器遗忘",
+      "year": 2024,
+      "latex": "\\mathcal{L}_{\\mathrm{SimNPO}}=-\\frac{2}{\\beta}\\log\\sigma\\!\\left(-\\frac{\\beta}{|y|}\\log\\pi_{\\theta}(y_f)-\\gamma\\right)",
+      "summary_zh": "NPO 去掉参考模型，改用长度归一化的对数概率和一个间隔 gamma。",
+      "intuition_zh": "没有 p_ref 可调。概率本身变小之后，logistic 仍然饱和，所以下界还在。",
+      "physics_zh": "gamma 平移饱和开始的位置。beta 控制饱和斜率。二元玩具取回答长度为 1。它和 SimPO 的关系，相当于 NPO 和 DPO 的关系。",
+      "failure_zh": "没有参考模型时，模型可以把所有答案的概率一起压低，只要遗忘答案相对更低。长度估计偏了，长短回答的遗忘强度会不一致。",
+      "paper_title": "Simplicity Prevails: Rethinking Negative Preference Optimization for LLM Unlearning",
+      "paper_url": "https://arxiv.org/abs/2410.07163",
+      "implementation_url": "",
+      "plane": "unlearning",
+      "bounded_below": true,
+      "step_mode": "gradient",
+      "keywords": [
+        "SimNPO",
+        "NPO"
+      ],
+      "toy_note_zh": "长度归一化取 |y|=1。",
+      "params": [
+        {
+          "key": "beta",
+          "label": "温度 beta",
+          "default": 1.5,
+          "minimum": 0.1,
+          "maximum": 5.0,
+          "step": 0.1,
+          "help": "二元玩具放大了 beta，用来代替一整段回答的对数概率。"
+        },
+        {
+          "key": "gamma",
+          "label": "间隔 gamma",
+          "default": 0.0,
+          "minimum": -1.0,
+          "maximum": 1.5,
+          "step": 0.05,
+          "help": ""
+        },
+        {
+          "key": "lam",
+          "label": "保留交叉熵权重",
+          "default": 0.0,
+          "minimum": 0.0,
+          "maximum": 2.0,
+          "step": 0.05,
+          "help": ""
+        }
+      ]
+    },
+    {
+      "id": "blur",
+      "name": "BLUR",
+      "name_zh": "双层正交遗忘",
+      "family": "unlearning",
+      "family_zh": "机器遗忘",
+      "year": 2025,
+      "latex": "\\theta^{\\star}(\\omega)=\\arg\\min_{\\theta}\\mathcal{L}_R(\\theta;\\omega),\\quad \\min_{\\omega}\\mathcal{L}_F(\\theta^{\\star}(\\omega))",
+      "summary_zh": "外层降低遗忘损失，内层先把保留损失修回来。参数平面上用保留梯度的正交补来近似这个双层约束。",
+      "intuition_zh": "概率平面上仍能看到无界的遗忘项和一条保留 KL 弹簧。真正不同的是更新方向：步进前先去掉沿保留梯度的分量。",
+      "physics_zh": "设 g_f 是遗忘损失的参数梯度，g_r 是保留损失的参数梯度。正交步使用 g_f - proj_{g_r} g_f。特征夹角 φ 越小，被去掉的分量越大，遗忘变慢，保留概率的漂移变小。",
+      "failure_zh": "正交投影只保护当前这一步的保留梯度方向。保留损失的梯度和真正要保护的知识不一致时，投影会保护错方向。它也不给遗忘损失增加下界。",
+      "paper_title": "BLUR: A Bi-Level Optimization Approach for LLM Unlearning",
+      "paper_url": "https://arxiv.org/abs/2506.08164",
+      "implementation_url": "",
+      "plane": "unlearning",
+      "bounded_below": false,
+      "step_mode": "project",
+      "keywords": [
+        "BLUR",
+        "bi-level",
+        "orthogonal"
+      ],
+      "toy_note_zh": "概率平面画的是外层遗忘项加保留 KL。参数平面请把优化器设为正交投影，那才是双层约束的玩具。",
+      "params": [
+        {
+          "key": "lam",
+          "label": "保留 KL 权重",
+          "default": 1.0,
+          "minimum": 0.0,
+          "maximum": 4.0,
+          "step": 0.1,
+          "help": ""
+        },
+        {
+          "key": "p_ref",
+          "label": "参考保留概率",
+          "default": 0.75,
+          "minimum": 0.05,
+          "maximum": 0.95,
+          "step": 0.01,
+          "help": ""
+        }
+      ]
+    },
+    {
+      "id": "jensun",
+      "name": "JensUn",
+      "name_zh": "Jensen-Shannon 遗忘",
+      "family": "unlearning",
+      "family_zh": "机器遗忘",
+      "year": 2025,
+      "latex": "\\mathcal{L}_{\\mathrm{JensUn}}=\\lambda_F\\,\\mathrm{JSD}(p_{\\theta}\\Vert p_{\\mathrm{safe}})+\\lambda_R\\,\\mathrm{JSD}(p_{\\theta}\\Vert p_{\\mathrm{ref}})",
+      "summary_zh": "遗忘通道去贴近一个安全目标，保留通道去贴近参考模型。两边都用有上界的 Jensen-Shannon 散度。",
+      "intuition_zh": "JS 散度落在 0 和 log 2 之间。目标达到以后梯度消失，离目标再远也不会像 KL 或 log p 那样把力放到无限大。",
+      "physics_zh": "p_safe 是遗忘通道的坑底，通常是一个很小的概率或拒答 token。p_ref 是保留通道的坑底。两个二次型附近的梯度和 JS 的饱和一起，使更新在结束时自动变小。",
+      "failure_zh": "安全目标如果只是空 token 或拒答，模型学会的可能是换一种说法，而不是丢掉那个事实。JS 对两个分布的中间点对称，早期梯度比梯度上升温和，遗忘速度也更慢。",
+      "paper_title": "Unlearning That Lasts: Utility-Preserving, Robust, and Almost Irreversible Forgetting in LLMs",
+      "paper_url": "https://arxiv.org/abs/2509.02820",
+      "implementation_url": "https://github.com/nmndeep/JensUn-Unlearning",
+      "plane": "unlearning",
+      "bounded_below": true,
+      "step_mode": "gradient",
+      "keywords": [
+        "JensUn",
+        "Jensen",
+        "JSD"
+      ],
+      "toy_note_zh": "论文在序列上对拒绝目标的 one-hot 和参考分布分别计算 JSD。这里把两个目标放进遗忘、保留两个伯努利通道。",
+      "params": [
+        {
+          "key": "lam_f",
+          "label": "遗忘权重",
+          "default": 1.0,
+          "minimum": 0.0,
+          "maximum": 4.0,
+          "step": 0.1,
+          "help": ""
+        },
+        {
+          "key": "lam_r",
+          "label": "保留权重",
+          "default": 1.0,
+          "minimum": 0.0,
+          "maximum": 4.0,
+          "step": 0.1,
+          "help": ""
+        },
+        {
+          "key": "p_safe",
+          "label": "安全目标概率",
+          "default": 0.05,
+          "minimum": 0.01,
+          "maximum": 0.4,
+          "step": 0.01,
+          "help": ""
+        },
+        {
+          "key": "p_ref",
+          "label": "参考保留概率",
+          "default": 0.75,
+          "minimum": 0.05,
+          "maximum": 0.95,
+          "step": 0.01,
+          "help": ""
+        }
+      ]
+    },
+    {
+      "id": "satimp",
+      "name": "SatImp",
+      "name_zh": "饱和-重要性重加权",
+      "family": "unlearning",
+      "family_zh": "机器遗忘",
+      "year": 2025,
+      "latex": "w(p)=p^{\\beta_1}(1-p)^{\\beta_2},\\qquad \\mathcal{L}_{\\mathrm{SatImp}}=w(p_f)\\log p_f",
+      "summary_zh": "仍以梯度上升为底，但用当前概率给每个 token 加权。已经很小的概率权重大幅下降，更新自动停手。",
+      "intuition_zh": "β1 越大，低概率 token 越快失去权重。β2 压低已经接近 1 的 token。中间概率的 token 承担大部分遗忘。",
+      "physics_zh": "p^β1 log p 在 β1>0 时随 p→0 趋向 0，而不是趋向负无穷。logit 推力也随之消失。这和 NPO 的饱和是同一类几何，只是权重写在损失外面。",
+      "failure_zh": "β1 过大时，稍一下降权重就没了，遗忘停在半途。权重如果还回传到概率本身，早期梯度会比停梯度的重加权更尖。",
+      "paper_title": "Exploring Criteria of Loss Reweighting to Enhance LLM Unlearning",
+      "paper_url": "https://arxiv.org/abs/2505.11953",
+      "implementation_url": "https://github.com/tmlr-group/SatImp",
+      "plane": "unlearning",
+      "bounded_below": true,
+      "step_mode": "gradient",
+      "keywords": [
+        "SatImp",
+        "reweighting"
+      ],
+      "toy_note_zh": "权重写进标量损失，数值梯度会穿过权重。这对应没有对权重停梯度的实现。",
+      "params": [
+        {
+          "key": "beta1",
+          "label": "饱和指数 beta1",
+          "default": 2.0,
+          "minimum": 0.2,
+          "maximum": 6.0,
+          "step": 0.1,
+          "help": "论文常用 5。过大时曲面会挤在很窄的区间。"
+        },
+        {
+          "key": "beta2",
+          "label": "重要性指数 beta2",
+          "default": 0.5,
+          "minimum": 0.0,
+          "maximum": 2.0,
+          "step": 0.05,
+          "help": "论文仓库推荐可低至 0.1。"
+        },
+        {
+          "key": "lam",
+          "label": "保留交叉熵权重",
+          "default": 0.0,
+          "minimum": 0.0,
+          "maximum": 2.0,
+          "step": 0.05,
+          "help": ""
+        }
+      ]
+    },
+    {
+      "id": "unilogit",
+      "name": "Unilogit",
+      "name_zh": "均匀目标自蒸馏",
+      "family": "unlearning",
+      "family_zh": "机器遗忘",
+      "year": 2025,
+      "latex": "\\mathcal{L}_{\\mathrm{Unilogit}}=\\mathrm{CE}(p_{\\theta}, U)+\\lambda\\, D_{\\mathrm{KL}}(p_{\\mathrm{ref}}\\Vert p_{\\theta})",
+      "summary_zh": "遗忘位置的目标改成均匀分布，保留位置用参考模型做自蒸馏。不需要外部保留答案。",
+      "intuition_zh": "均匀目标的交叉熵在 p_f = 1/|V| 处最低。原答案既不会被抬到 1，也不会被梯度上升到 0。",
+      "physics_zh": "词表越大，最低点越靠近 0，但坑底仍在。保留项是正向 KL，学生必须覆盖参考模型的模式，不能只把质量堆到一个拒答 token。",
+      "failure_zh": "均匀分布不是一个自然的拒答。模型可以在遗忘提示上变得很平，看起来像遗忘，生成质量却变成高熵噪声。",
+      "paper_title": "Unilogit: Robust Machine Unlearning for LLMs Using Uniform-Target Self-Distillation",
+      "paper_url": "https://arxiv.org/abs/2505.06027",
+      "implementation_url": "",
+      "plane": "unlearning",
+      "bounded_below": true,
+      "step_mode": "gradient",
+      "keywords": [
+        "Unilogit",
+        "uniform",
+        "self-distillation"
+      ],
+      "toy_note_zh": "遗忘通道用“目标 token 对其余质量”的二元交叉熵近似全词表均匀目标。",
+      "params": [
+        {
+          "key": "vocab",
+          "label": "词表大小 |V|",
+          "default": 128.0,
+          "minimum": 8.0,
+          "maximum": 1024.0,
+          "step": 8.0,
+          "help": ""
+        },
+        {
+          "key": "lam",
+          "label": "保留蒸馏权重",
+          "default": 1.0,
+          "minimum": 0.0,
+          "maximum": 4.0,
+          "step": 0.1,
+          "help": ""
+        },
+        {
+          "key": "p_ref",
+          "label": "参考保留概率",
+          "default": 0.7,
+          "minimum": 0.05,
+          "maximum": 0.95,
+          "step": 0.01,
+          "help": ""
+        }
+      ]
+    },
+    {
+      "id": "shred",
+      "name": "SHRED",
+      "name_zh": "自蒸馏 logit 降权",
+      "family": "unlearning",
+      "family_zh": "机器遗忘",
+      "year": 2026,
+      "latex": "\\mathcal{L}_{\\mathrm{SHRED}}=\\mathrm{softplus}\\!\\left(\\beta\\log\\frac{p_{\\theta}(y_f)}{p_{\\mathrm{self}}(y_f)}+m\\right)+\\lambda\\, D_{\\mathrm{KL}}(p_{\\mathrm{self}}\\Vert p_{\\theta})",
+      "summary_zh": "没有外部保留集。用冻结的自己当教师，压低遗忘 token 的 logit，同时在其余通道上做自蒸馏。",
+      "intuition_zh": "softplus 在学生已经低于教师一个间隔后梯度消失。自蒸馏把其余通道锚在更新前的模型上。",
+      "physics_zh": "margin 决定要低出多少才停。beta 决定降权有多陡。因为教师是冻结的，损失不会随着自己的概率一起滑向负无穷。",
+      "failure_zh": "教师本身就会输出遗忘答案时，降权只是相对这个教师下移一点，答案仍可能留在 top-k 里。自蒸馏权重太小，其余通道会跟着漂移。",
+      "paper_title": "SHRED: Retain-Set-Free Unlearning via Self-Distillation with Logit Demotion",
+      "paper_url": "https://arxiv.org/abs/2605.07482",
+      "implementation_url": "",
+      "plane": "unlearning",
+      "bounded_below": true,
+      "step_mode": "gradient",
+      "keywords": [
+        "SHRED",
+        "self-distillation",
+        "logit demotion"
+      ],
+      "toy_note_zh": "二元软间隔加自蒸馏是对论文机制的玩具，不是逐 token 的完整实现。",
+      "params": [
+        {
+          "key": "beta",
+          "label": "降权斜率 beta",
+          "default": 2.0,
+          "minimum": 0.2,
+          "maximum": 6.0,
+          "step": 0.1,
+          "help": ""
+        },
+        {
+          "key": "margin",
+          "label": "间隔 m",
+          "default": 0.5,
+          "minimum": 0.0,
+          "maximum": 2.0,
+          "step": 0.05,
+          "help": ""
+        },
+        {
+          "key": "lam",
+          "label": "自蒸馏权重",
+          "default": 1.0,
+          "minimum": 0.0,
+          "maximum": 4.0,
+          "step": 0.1,
+          "help": ""
+        },
+        {
+          "key": "p_teacher",
+          "label": "冻结自教师概率",
+          "default": 0.65,
+          "minimum": 0.05,
+          "maximum": 0.95,
+          "step": 0.01,
+          "help": ""
+        }
+      ]
+    }
+  ]
+}
