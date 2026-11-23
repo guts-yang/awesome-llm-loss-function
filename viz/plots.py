@@ -131,34 +131,223 @@ def contour_figure(x_grid, y_grid, values, x_label: str, y_label: str, y_slice: 
     return _base(figure, title, height=480)
 
 
-def slice_figure(curves, x_label: str, title: str = "一维切面"):
-    figure = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.12, subplot_titles=("损失势能", "logit 梯度推力 |dL/dz|"))
+FRAME_COUNT = 36
+FRAME_MS = 30
+_PULSE_WIDTH = (2.5, 3.3, 2.5)
+_PULSE_OPACITY = (1.0, 0.82, 1.0)
+_PULSE_HEAD = (7, 11, 7)
+
+
+def _frame_cuts(length: int, count: int = FRAME_COUNT) -> list[int]:
+    if length <= 2:
+        return [length]
+    cuts = []
+    for value in np.rint(np.linspace(2, length, count)).astype(int):
+        point = int(max(2, min(length, value)))
+        if not cuts or point != cuts[-1]:
+            cuts.append(point)
+    if cuts[-1] != length:
+        cuts.append(length)
+    return cuts
+
+
+def _axis_span(values) -> tuple[float, float]:
+    low = float(np.nanmin(values))
+    high = float(np.nanmax(values))
+    pad = max((high - low) * 0.08, 1e-3)
+    return low - pad, high + pad
+
+
+def _pulse(index: int, last: bool) -> tuple[float, float, int]:
+    if last:
+        return 2.5, 1.0, 0
+    slot = index % 3
+    return _PULSE_WIDTH[slot], _PULSE_OPACITY[slot], _PULSE_HEAD[slot]
+
+
+def _slice_trace_group(curve, end: int, width: float, opacity: float, head: int):
+    probability = curve["probability"][:end]
+    loss = curve["loss"][:end]
+    thrust = curve["thrust"][:end]
+    color = curve["color"]
+    name = curve["name"]
+    loss_line = go.Scatter(
+        x=probability,
+        y=loss,
+        mode="lines",
+        name=name,
+        legendgroup=name,
+        line=dict(color=color, width=width),
+        opacity=opacity,
+    )
+    thrust_line = go.Scatter(
+        x=probability,
+        y=np.abs(thrust),
+        mode="lines",
+        name=name,
+        legendgroup=name,
+        showlegend=False,
+        line=dict(color=color, width=width),
+        opacity=opacity,
+        customdata=thrust,
+        hovertemplate="p=%{x:.3f}<br>|dL/dz|=%{y:.4f}<br>dL/dz=%{customdata:.4f}<extra></extra>",
+    )
+    loss_head = go.Scatter(
+        x=[probability[-1]],
+        y=[loss[-1]],
+        mode="markers",
+        showlegend=False,
+        hoverinfo="skip",
+        marker=dict(size=head, color=color),
+    )
+    thrust_head = go.Scatter(
+        x=[probability[-1]],
+        y=[abs(float(thrust[-1]))],
+        mode="markers",
+        showlegend=False,
+        hoverinfo="skip",
+        marker=dict(size=head, color=color),
+    )
+    return [loss_line, thrust_line, loss_head, thrust_head]
+
+
+def _place_traces(figure, traces):
+    for index, trace in enumerate(traces):
+        figure.add_trace(trace, row=1 if index % 2 == 0 else 2, col=1)
+
+
+def _bind_frame_axes(frame_traces, base_traces):
+    for frame_trace, base_trace in zip(frame_traces, base_traces):
+        frame_trace.xaxis = base_trace.xaxis
+        frame_trace.yaxis = base_trace.yaxis
+    return frame_traces
+
+
+def _add_margin_marker(figure, curve, marker):
+    if not marker:
+        return
+    probability = curve["probability"]
+    loss = curve["loss"]
+    thrust = np.abs(curve["thrust"])
+    x_value = float(marker["x"])
+    loss_y = float(np.interp(x_value, probability, loss))
+    thrust_y = float(np.interp(x_value, probability, thrust))
+    for row, y_value in ((1, loss_y), (2, thrust_y)):
+        figure.add_vline(x=x_value, row=row, col=1, line_width=1.5, line_dash="dot", line_color="#C4491D", opacity=0)
+        figure.add_annotation(
+            x=x_value,
+            y=y_value,
+            text=marker["label"],
+            showarrow=False,
+            yshift=14,
+            font=dict(color="#C4491D", size=14),
+            opacity=0,
+            row=row,
+            col=1,
+        )
+
+
+def slice_figure(curves, x_label: str, title: str = "一维切面", marker=None):
+    prepared = []
     for index, curve in enumerate(curves):
-        color = COLORS[index % len(COLORS)]
-        figure.add_trace(
-            go.Scatter(x=curve["probability"], y=curve["loss"], mode="lines", name=curve["name"], line=dict(color=color, width=2.5), legendgroup=curve["name"]),
-            row=1,
-            col=1,
+        prepared.append(
+            {
+                "name": curve["name"],
+                "color": COLORS[index % len(COLORS)],
+                "probability": np.asarray(curve["probability"], dtype=float),
+                "loss": np.asarray(curve["loss"], dtype=float),
+                "thrust": np.asarray(curve["thrust"], dtype=float),
+            }
         )
-        figure.add_trace(
-            go.Scatter(
-                x=curve["probability"],
-                y=np.abs(curve["thrust"]),
-                mode="lines",
-                name=curve["name"],
-                line=dict(color=color, width=2.5),
-                legendgroup=curve["name"],
-                showlegend=False,
-                customdata=curve["thrust"],
-                hovertemplate="p=%{x:.3f}<br>|dL/dz|=%{y:.4f}<br>dL/dz=%{customdata:.4f}<extra></extra>",
-            ),
-            row=2,
-            col=1,
-        )
-    figure.update_xaxes(title_text=x_label, row=2, col=1)
-    figure.update_yaxes(title_text="L", row=1, col=1)
-    figure.update_yaxes(title_text="|dL/dz|", row=2, col=1)
+    cuts = _frame_cuts(len(prepared[0]["probability"]))
+    figure = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.12, subplot_titles=("损失势能", "logit 梯度推力 |dL/dz|"))
+    width, opacity, head = _pulse(0, last=False)
+    grouped = []
+    for curve in prepared:
+        grouped.extend(_slice_trace_group(curve, cuts[0], width, opacity, head))
+    _place_traces(figure, grouped)
+    _add_margin_marker(figure, prepared[0], marker)
+    probability = np.concatenate([item["probability"] for item in prepared])
+    loss = np.concatenate([item["loss"] for item in prepared])
+    thrust = np.concatenate([np.abs(item["thrust"]) for item in prepared])
+    x_low, x_high = float(np.min(probability)), float(np.max(probability))
+    loss_low, loss_high = _axis_span(loss)
+    thrust_low, thrust_high = _axis_span(thrust)
+    figure.update_xaxes(title_text=x_label, range=[x_low, x_high], row=2, col=1)
+    figure.update_xaxes(range=[x_low, x_high], row=1, col=1)
+    figure.update_yaxes(title_text="L", range=[loss_low, loss_high], row=1, col=1)
+    figure.update_yaxes(title_text="|dL/dz|", range=[thrust_low, thrust_high], row=2, col=1)
+    frames = []
+    for index, cut in enumerate(cuts):
+        frame_width, frame_opacity, frame_head = _pulse(index, last=index == len(cuts) - 1)
+        frame_traces = []
+        for curve in prepared:
+            frame_traces.extend(_slice_trace_group(curve, cut, frame_width, frame_opacity, frame_head))
+        frames.append(go.Frame(name=str(index), data=_bind_frame_axes(frame_traces, figure.data)))
+    figure.frames = frames
+    figure.layout.meta = {"frame_count": len(frames)}
     return _base(figure, title, height=480)
+
+
+def slice_html(figure) -> str:
+    frame_count = int(figure.layout.meta["frame_count"])
+    names = "[" + ",".join(f"'{index}'" for index in range(frame_count)) + "]"
+    last_name = str(frame_count - 1)
+    post_script = f"""
+var gd = document.getElementById('{{plot_id}}');
+var names = {names};
+var play = {{frame: {{duration: {FRAME_MS}, redraw: false}}, transition: {{duration: 0}}, mode: 'immediate'}};
+var jump = {{frame: {{duration: 0, redraw: false}}, transition: {{duration: 0}}, mode: 'immediate'}};
+if (!document.getElementById('loss-motion-style')) {{
+  var style = document.createElement('style');
+  style.id = 'loss-motion-style';
+  style.textContent = '@keyframes lossBreathe {{0%,100%{{opacity:1}}50%{{opacity:0.78}}}} @keyframes lossFlash {{0%,100%{{opacity:1}}50%{{opacity:0.2}}}} .loss-flash {{animation: lossFlash 0.45s ease-in-out 3}}';
+  document.head.appendChild(style);
+}}
+var settled = false;
+function applyBreathe() {{
+  var lines = gd.querySelectorAll('.js-line');
+  for (var index = 0; index < lines.length; index++) {{
+    lines[index].style.animation = 'lossBreathe 2.6s ease-in-out ' + (index * 0.15) + 's infinite';
+  }}
+}}
+function revealMarker(flash) {{
+  var annotations = gd.layout.annotations || [];
+  var shapes = gd.layout.shapes || [];
+  var update = {{}};
+  for (var i = 0; i < annotations.length; i++) update['annotations[' + i + '].opacity'] = 1;
+  for (var j = 0; j < shapes.length; j++) update['shapes[' + j + '].opacity'] = 1;
+  var done = function () {{
+    if (!flash) return;
+    var nodes = gd.querySelectorAll('.annotation-text');
+    for (var k = 0; k < nodes.length; k++) {{
+      var content = nodes[k].textContent || '';
+      if (content.indexOf('γ') === 0 || content.indexOf('δ') === 0) nodes[k].classList.add('loss-flash');
+    }}
+  }};
+  if (!annotations.length && !shapes.length) return;
+  Plotly.relayout(gd, update).then(done);
+}}
+gd.on('plotly_afterplot', function () {{ if (settled) applyBreathe(); }});
+function settle(flash) {{
+  settled = true;
+  applyBreathe();
+  revealMarker(flash);
+}}
+var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+if (reduce) {{
+  Plotly.animate(gd, ['{last_name}'], jump).then(function () {{ settle(false); }});
+}} else {{
+  Plotly.animate(gd, names, play).then(function () {{ settle(true); }});
+}}
+"""
+    return figure.to_html(
+        include_plotlyjs=True,
+        full_html=False,
+        auto_play=False,
+        post_script=post_script,
+        config={"displayModeBar": True, "responsive": True},
+    )
 
 
 def trajectory_figure(runs, title: str = "优化轨迹"):

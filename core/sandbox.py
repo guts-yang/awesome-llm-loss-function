@@ -87,6 +87,7 @@ def plugin_from_formula(formula: str, loss_id: str = "sandbox", display_name: st
         year = 2026
         latex = sp.latex(expression)
         summary_zh = "由公式实验室编译的自定义损失。"
+        use_zh = "用来先看一条自定义表达式的形状。还没决定任务之前，可以把它画出来对照现有损失。通过检查之前，不要拿它替换论文里的损失。"
         intuition_zh = "系统对 x 和 y 做数值求导，并套用同一套三维、二维和一维图。"
         physics_zh = "请自己解释每一项是间隔、温度、下界还是锚。"
         failure_zh = "未通过有限差分和边界检查之前，不要把这张图当成论文公式。"
@@ -139,6 +140,7 @@ class MyNovelLoss(LossPlugin):
     year = 2026
     latex = r"{latex}"
     summary_zh = "一句话说明它解决的失败模式。"
+    use_zh = "用白话写清它用来做什么、常见场景，以及什么情况下该选它。"
     intuition_zh = "它在概率平面上把哪一个方向变成坑、哪一个方向变成墙。"
     physics_zh = "写出对 logit 的推力在 p→0 和 p→1 时分别怎样。"
     failure_zh = "写出它仍然会伤到哪一类相邻知识。"

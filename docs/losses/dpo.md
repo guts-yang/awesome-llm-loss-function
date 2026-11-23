@@ -11,7 +11,11 @@ $$
 \mathcal{L}_{\mathrm{DPO}}=-\log\sigma\!\left(\beta\log\frac{\pi_\theta(y_w)}{\pi_{\mathrm{ref}}(y_w)}-\beta\log\frac{\pi_\theta(y_l)}{\pi_{\mathrm{ref}}(y_l)}\right)
 $$
 
-用偏好对直接训练策略，隐式奖励是相对参考模型的对数概率差。
+用偏好对训练策略，奖励是相对参考模型的对数概率差。
+
+## 什么时候用
+
+用“这条回答比那条好”直接改模型，不必先训奖励模型再跑强化学习。对话对齐、让回答更符合人类偏好时最常见。已经有成对偏好，也还留着微调前的模型时用它。
 
 ## 直觉
 
@@ -19,10 +23,10 @@ $$
 
 ## 物理意义
 
-beta 是这个势阱的温度。参考概率升高时，同样的当前概率得到的奖励变小，等高线跟着平移。没有参考模型时，这条平移就消失了，那是 SimPO 的位置。
+β 把这个差变陡；参考概率升高时，同样的当前概率得到的奖励变小，等高线平移。
 
 ## 失效
 
-chosen 和 rejected 很接近时，对数比的梯度很尖，容易把概率质量从相邻的正确回答里挤走。
+chosen 和 rejected 太近时，对数比的梯度很尖。
 
 实现: https://github.com/eric-mitchell/direct-preference-optimization

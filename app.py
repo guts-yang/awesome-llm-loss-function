@@ -8,17 +8,18 @@ import sys
 from pathlib import Path
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 ROOT = Path(__file__).resolve().parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from core.evaluate import logit_slice, probability_grid
+from core.evaluate import logit_slice, margin_marker, probability_grid
 from core.guide import GUIDE
 from core.sandbox import FormulaError, derivative_latex, plugin_from_formula, plugin_skeleton
 from core.schema import FAMILY_LABELS, all_losses, get_loss
 from core.toy_dynamics import parameter_grid, simulate
-from viz.plots import arc_figure, contour_figure, slice_figure, surface_figure, trajectory_figure
+from viz.plots import arc_figure, contour_figure, slice_figure, slice_html, surface_figure, trajectory_figure
 
 GOAL_ALL = "全部目标"
 FAMILY_ALL = "全部"
@@ -26,21 +27,6 @@ PAGES = ["目录", "工作区", "更多"]
 MORE_PAGES = ["公式实验室", "贡献"]
 PROBABILITY_STAGES = ["三维势能", "二维下降", "一维切面"]
 PARAMETER_STAGES = ["参数势能", "优化轨迹", "弧长投影"]
-
-MECHANISMS = [
-    (
-        "势能有没有底",
-        "梯度上升的 log p 随 p→0 趋向负无穷，logit 推力趋向 1。NPO 的 logistic、SatImp 的 p^β、JensUn 的 JS 散度都会把这个推力收掉。",
-    ),
-    (
-        "概率质量流去哪里",
-        "压低目标 token 之后，质量可能铺到均匀噪声、堆到一个高频词，或者流到替代答案和拒答。WHP 和 Unilogit 直接指定去向，梯度上升不指定。",
-    ),
-    (
-        "梯度和谁缠在一起",
-        "遗忘方向 v_f 与保留方向 v_r 的夹角 φ 变小以后，⟨∇L_f, ∇L_r⟩ 变大。GradDiff 把两股力相加，BLUR 的正交步把沿保留梯度的分量去掉。",
-    ),
-]
 
 st.set_page_config(page_title="Awesome LLM Loss Function", page_icon="∑", layout="wide")
 st.markdown(
@@ -92,7 +78,7 @@ st.markdown(
         color: #1C2430;
         line-height: 1.45;
         display: -webkit-box;
-        -webkit-line-clamp: 2;
+        -webkit-line-clamp: 4;
         -webkit-box-orient: vertical;
         overflow: hidden;
     }
@@ -379,16 +365,16 @@ def _show_probability(plugin, params):
         for extra in extras:
             probability, loss, thrust = logit_slice(extra, extra.defaults(), y_slice, mode="native")
             curves.append({"name": extra.name, "probability": probability, "loss": loss, "thrust": thrust})
-        st.plotly_chart(slice_figure(curves, x_label), width="stretch")
-        st.caption("推力是 |∂L/∂z|，z = logit(p)。梯度下降使用带符号的 ∂L/∂z，悬停可以看到符号。GA 在低概率处推力停在高位；NPO、SimNPO、SatImp、JensUn 会衰减。")
+        marker = margin_marker(plugin, params, y_slice) if plane == "native" else None
+        _show_slice(curves, x_label, marker)
+        st.caption("下图是 |∂L/∂z|，悬停可以看到带符号的导数。")
         return
     x_grid, y_grid, values = probability_grid(plugin, params, n=51, mode=plane, other=other)
     if stage == "三维势能":
         st.plotly_chart(surface_figure(x_grid, y_grid, values, x_label, y_label, y_slice), width="stretch")
-        st.caption("横轴和纵轴都是概率，高度是最小化的损失。")
         return
     st.plotly_chart(contour_figure(x_grid, y_grid, values, x_label, y_label, y_slice), width="stretch")
-    st.caption("箭头是损失下降方向，虚线是当前一维切面。")
+    st.caption("箭头是下降方向，虚线是当前切面。")
 
 
 def _show_parameter(plugin, params):
@@ -421,27 +407,25 @@ def _show_parameter(plugin, params):
             runs.append({"name": item.name, "result": result})
         chart = trajectory_figure(runs) if stage == "优化轨迹" else arc_figure(runs)
         st.plotly_chart(chart, width="stretch")
-    st.caption("遗忘特征固定在 θ1 轴。保留特征与它夹角为 φ。φ 越小，两件事越缠在一起，普通梯度越容易把保留概率一起带走。正交投影会去掉沿保留交叉熵梯度的分量。")
+    if plugin.family == "unlearning":
+        caption = "θ1 是遗忘特征，φ 是它和保留特征的夹角。"
+        if plugin.step_mode == "project":
+            caption += "正交投影去掉沿保留梯度的分量。"
+    else:
+        caption = "这是在二维特征玩具上最小化这条损失。"
+    st.caption(caption)
+
+
+def _show_slice(curves, x_label, marker=None):
+    components.html(slice_html(slice_figure(curves, x_label, marker=marker)), height=530)
 
 
 def show_workspace(plugin, params, papers):
     reading, geometry = st.columns([4, 8])
     with reading:
         st.latex(plugin.latex)
-        if plugin.toy_note_zh:
-            st.caption(plugin.toy_note_zh)
         st.write(plugin.summary_zh)
-        st.write(plugin.intuition_zh)
-        with st.expander("统一的 logit 梯度"):
-            st.write("把概率写成 p = σ(z) 之后，优化器真正加到 logit 上的力是损失对 z 的导数。概率平面上的陡坡还要再乘 p(1-p)，所以靠近 0 和 1 时，同样的概率导数不一定对应同样的 logit 推力。")
-            st.latex(r"\frac{\partial \mathcal{L}}{\partial z}=\frac{\partial \mathcal{L}}{\partial p}\,p(1-p)= \mathcal{W}(p, p_{\mathrm{ref}}, \beta)\, d")
-            st.write("权重 W 决定推力会不会在遗忘完成之后关掉。d 决定被推的是目标 token、对照 token，还是相对参考模型的对数比。")
-        for title, body in MECHANISMS:
-            with st.expander(title):
-                st.write(body)
-        st.subheader("当前损失的机制")
         st.write(plugin.physics_zh)
-        st.subheader("它会怎么失败")
         st.write(plugin.failure_zh)
         with st.expander("相关论文"):
             show_paper_list(related_papers(plugin, papers, limit=6))
@@ -471,7 +455,7 @@ def show_sandbox():
             st.plotly_chart(surface_figure(x_grid, y_grid, values, "x", "y"), width="stretch")
         with right:
             st.plotly_chart(contour_figure(x_grid, y_grid, values, "x", "y", 0.6), width="stretch")
-        st.plotly_chart(slice_figure([{"name": "自定义", "probability": probability, "loss": loss, "thrust": thrust}], "x"), width="stretch")
+        _show_slice([{"name": "自定义", "probability": probability, "loss": loss, "thrust": thrust}], "x")
         st.code(plugin_skeleton(formula), language="python")
     except FormulaError as exc:
         st.error(str(exc))

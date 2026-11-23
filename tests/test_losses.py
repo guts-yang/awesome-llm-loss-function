@@ -1,7 +1,7 @@
 import numpy as np
 
 from core import all_losses, get_loss
-from core.evaluate import logit_slice, numeric_gradient, probability_grid
+from core.evaluate import logit_slice, margin_marker, numeric_gradient, probability_grid
 from core.math_utils import binary_js
 from core.schema import REGISTRY, LossPlugin, register_loss
 
@@ -23,7 +23,9 @@ def test_formulas_stay_in_english_latex():
         assert plugin.latex
         assert not any("\u4e00" <= char <= "\u9fff" for char in plugin.latex)
         assert plugin.summary_zh
+        assert plugin.use_zh
         assert any("\u4e00" <= char <= "\u9fff" for char in plugin.summary_zh)
+        assert any("\u4e00" <= char <= "\u9fff" for char in plugin.use_zh)
 
 
 def test_gradient_ascent_has_no_floor_and_full_logit_thrust():
@@ -83,6 +85,47 @@ def test_cross_entropy_derivative():
     for probability in (0.15, 0.4, 0.8):
         estimated = numeric_gradient(plugin, probability, 0.3)
         assert abs(estimated - (-1.0 / probability)) < 2e-3
+
+
+def test_margin_marker_sits_on_the_visible_feature():
+    simpo = get_loss("simpo")
+    simpo_params = simpo.defaults()
+    simpo_params["beta"] = 1.0
+    simpo_params["gamma"] = 0.0
+    simpo_marker = margin_marker(simpo, simpo_params, y_fixed=0.6)
+    assert simpo_marker["label"] == "γ=0.00"
+    assert abs(simpo_marker["x"] - 0.6) < 1e-9
+
+    slic = get_loss("slic")
+    slic_params = slic.defaults()
+    slic_params["delta"] = 0.5
+    slic_marker = margin_marker(slic, slic_params, y_fixed=0.6)
+    assert slic_marker["label"] == "δ=0.50"
+    assert abs(slic_marker["x"] - 0.6 * np.exp(0.5)) < 1e-9
+
+    simnpo = get_loss("simnpo")
+    simnpo_params = simnpo.defaults()
+    simnpo_params["beta"] = 0.2
+    simnpo_params["gamma"] = -0.2
+    simnpo_marker = margin_marker(simnpo, simnpo_params, y_fixed=0.6)
+    assert simnpo_marker["label"] == "γ=-0.20"
+    assert abs(simnpo_marker["x"] - np.exp(-1.0)) < 1e-9
+
+
+def test_margin_marker_is_empty_outside_the_slice():
+    simpo = get_loss("simpo")
+    simpo_params = simpo.defaults()
+    simpo_params["beta"] = 0.1
+    simpo_params["gamma"] = 0.5
+    assert margin_marker(simpo, simpo_params, y_fixed=0.6) is None
+
+    slic = get_loss("slic")
+    slic_params = slic.defaults()
+    slic_params["delta"] = 1.0
+    assert margin_marker(slic, slic_params, y_fixed=0.6) is None
+
+    assert margin_marker(get_loss("dpo"), y_fixed=0.6) is None
+    assert margin_marker(get_loss("simpo"), {"beta": 0.0, "gamma": 0.5}, y_fixed=0.6) is None
 
 
 def test_class_registration_api():

@@ -58,6 +58,7 @@ class LossPlugin:
     year = 0
     latex = ""
     summary_zh = ""
+    use_zh = ""
     intuition_zh = ""
     physics_zh = ""
     failure_zh = ""
@@ -108,6 +109,7 @@ class LossPlugin:
             "year": self.year,
             "latex": self.latex,
             "summary_zh": self.summary_zh,
+            "use_zh": self.use_zh,
             "intuition_zh": self.intuition_zh,
             "physics_zh": self.physics_zh,
             "failure_zh": self.failure_zh,
