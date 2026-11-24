@@ -28,7 +28,7 @@ Interactive LLM Loss Atlas。用中文讲解大语言模型的损失函数，用
 | 蒸馏 | Forward KL、Reverse KL、JS、RKLD |
 | 机器遗忘 | GA、GradDiff、GA+KL、NPO、SimNPO、WHP、Unilogit、RMU、SHRED、JensUn、BLUR、SatImp |
 
-选择指南在看板的「损失目录」，也写在 [`docs/selection-guide.md`](docs/selection-guide.md)。单条说明在 [`docs/losses/`](docs/losses/)。
+选择指南在看板的「损失目录」，也写在 [`docs/selection-guide.md`](docs/selection-guide.md)。单条说明在 [`docs/losses/`](docs/losses/)。按模块阅读的中文页是 [`docs/index.html`](docs/index.html)。
 
 概率平面上的曲面是二元玩具。序列长度、词表和隐藏状态被压成两个概率，为的是保留下界、饱和和锚定这些几何性质。每条损失自己的 `toy_note_zh` 写明了哪一部分是简化。
 
