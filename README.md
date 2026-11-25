@@ -1,5 +1,7 @@
 # Awesome LLM Loss Function
 
+[项目主页](https://guts-yang.github.io/awesome-llm-loss-function/)
+
 Interactive LLM Loss Atlas。用中文讲解大语言模型的损失函数，用英文 LaTeX 写公式，并把每条损失从三维势能面投影到二维下降方向和一维 logit 推力。
 
 关键词：`awesome llm loss function`、`llm loss functions`、`dpo npo simpo`、`llm unlearning loss`、`loss landscape`
